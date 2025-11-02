@@ -1,0 +1,195 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using DarianTablet.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+@using Microsoft.AspNetCore.Mvc;
+
+
+
+@inherits BaseComponent
+<style>
+	.modal-dialog {
+		max-width: 98%; /* عرض مودال را به ۹۸ درصد صفحه تنظیم می‌کند */
+		width: 98%; /* عرض مودال را به ۹۸ درصد صفحه تنظیم می‌کند */
+		margin: 1% auto; /* مرکز‌چینی مودال */
+	}
+
+	.modal-content {
+		width: 100%; /* عرض محتوای مودال را به ۱۰۰ درصد تنظیم می‌کند */
+	}
+</style>
+
+<div class="modal" tabindex="-1" role="dialog" style="display:@(isVisible ? "block" : "none")">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">جستجوی اشخاص</h5>
+				<button type="button" class="close" @onclick="CloseModal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<div class="search-bar">
+					<input type="text" @ref="searchInput" @bind="searchTerm" class="form-control" placeholder="جستجو..." @onkeydown="HandleKeyDown" @onfocusout="OnLostFocus" />
+					<button @ref="seearchbutton" @onclick="Search" class="btn btn-primary">جستجو</button>
+				</div>
+
+				@if (IsLoading)
+				{
+					<p>در حال بارگذاری اطلاعات...</p>
+				}
+				else
+				{
+
+					<div class="table-responsive d-none d-md-block">
+						<table class="table table-striped">
+							<thead>
+								<tr>
+									<th>شناسه</th>
+									<th>نام کامل</th>
+									<th>کد ملی</th>
+									<th>تلفن</th>
+									<th>آدرس</th>
+									<th>انتخاب</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (var person in filteredPeople)
+								{
+									<tr>
+										<td>@person.PeopleId</td>
+										<td>@person.FullName</td>
+										<td>@person.NationalCode</td>
+										<td>@person.Tel</td>
+										<td>@person.Address</td>
+										<td>
+											<button @onclick="() => SelectPerson(person)" class="btn btn-success">انتخاب</button>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+
+
+					<div class="d-block d-md-none">
+						@foreach (var person in filteredPeople)
+						{
+							<div class="card mb-3">
+								<div class="card-body">
+									<div class="row">
+										<div class="col-6">
+											<small>نام:</small>
+										</div>
+										<div class="col-6">
+											<small>	@person.FullName</small>
+										</div>
+									</div>
+									<div class="row">
+										<div class="col-6">
+											<small>کدملی:</small>
+										</div>
+										<div class="col-6">
+											<small>	@person.NationalCode </small>
+										</div>
+									</div>
+
+									<div class="row">
+										<div class="col-12 text-center mt-2">
+											<button @onclick="() => SelectPerson(person)" class="btn btn-success">انتخاب</button>
+										</div>
+									</div>
+
+								</div>
+							</div>
+						}
+					</div>
+
+				}
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	private bool isVisible = false;
+	private string searchTerm;
+	private List<PeopleDto> people = new List<PeopleDto>();
+	private List<PeopleDto> filteredPeople = new List<PeopleDto>();
+
+	private bool IsLoading = true;
+
+	private ElementReference searchInput;
+	private ElementReference seearchbutton;
+
+
+	[Parameter]
+	public EventCallback<PeopleDto> OnPersonSelected { get; set; }
+
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await SetToken();
+			ApiClient.SetToken(Token);
+			people = await ApiClient.GetAsync<List<PeopleDto>>("Buy/GetPeoples"); //CustomerRepository.GetAllPeople();
+			await searchInput.FocusAsync();
+		}
+		IsLoading = false;
+		await InvokeAsync(StateHasChanged);
+	}
+
+	public void Show()
+	{
+		isVisible = true;
+		StateHasChanged();
+	}
+
+	private void CloseModal()
+	{
+		isVisible = false;
+		StateHasChanged();
+	}
+	private void HandleKeyDown(KeyboardEventArgs e)
+	{
+		if (e.Key == "Enter")
+		{
+			seearchbutton.FocusAsync();
+			searchInput.FocusAsync();
+		}
+	}
+
+	private void OnLostFocus()
+	{
+		if (!string.IsNullOrEmpty(searchTerm))
+		{
+			Search();
+
+			InvokeAsync(StateHasChanged);
+		}
+
+	}
+	private void Search()
+	{
+
+		if (!string.IsNullOrEmpty(searchTerm))
+		{
+			if (searchTerm.Length >= 3)
+			{
+				filteredPeople = people.Where(p => p.FullName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+				|| p.NationalCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+				|| p.Tel.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+				|| p.Address.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+			}
+		}
+	}
+
+	private async Task SelectPerson(PeopleDto people)
+	{
+		await OnPersonSelected.InvokeAsync(people);
+		CloseModal();
+	}
+}

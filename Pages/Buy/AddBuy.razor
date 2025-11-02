@@ -1,0 +1,440 @@
+﻿@page "/Addbuy"
+@page "/Addbuy/{buymasterId}"
+@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+@using Microsoft.AspNetCore.Mvc;
+@using People;
+@using Newtonsoft.Json;
+@using Newtonsoft;
+
+
+
+
+
+
+@inherits BaseComponent
+
+<h3>فاکتور خرید</h3>
+
+<EditForm Model="@buyMaster" OnValidSubmit="@HandleValidSubmit">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<div class="form-container">
+		<div class="form-group">
+			<label for="FactorCode">کد فاکتور:</label>
+			<span class="form-control">@buyMaster.FactorCode</span>
+		</div>
+		<div class="form-group">
+			<label for="FactorDate">تاریخ فاکتور:</label>
+			<span class="form-control"> @buyMaster.FactorPersianDate </span>
+		</div>
+		<div class="form-group">
+			<label for="ProducerId">تامین کننده</label>
+			<InputText id="ProducerId" @bind-Value="buyMaster.ProducerName" class="form-control" @onfocus="OpenPeopleSearchModal" @onclick="OpenPeopleSearchModal" />
+		</div>
+		<div class="form-group">
+			<label for="ProducerFactorCode">شماره فاکتور تامین کننده</label>
+			<InputText id="ProducerFactorCode" @bind-Value="buyMaster.ProducerFactorCode" class="form-control" />
+		</div>
+		<div class="form-group">
+			<label for="BuyTypeId">نوع خرید:</label>
+			<InputSelect id="BuyTypeId" @bind-Value="buyMaster.BuyTypeId" class="form-control">
+				<option value="1">عادی</option>
+				<option value="2">رسمی</option>
+			</InputSelect>
+
+		</div>
+		<div class="form-group">
+			<label for="Description">توضیحات:</label>
+			<InputTextArea id="Description" @bind-Value="buyMaster.Description" class="form-control" />
+		</div>
+		<div class="form-group">
+			<label for="TotalPrice">جمع کل قیمت:</label>
+			<span class="form-control">  @buyMaster.TotalPrice.ToString("N0") </span>
+		</div>
+		<div class="form-group">
+			<label for="TotalDiscountPrice">جمع کل تخفیف:</label>
+			<span class="form-control"> @buyMaster.TotalDiscountPrice.ToString("N0")</span>
+		</div>
+		<div class="form-group">
+			<label for="FactorDiscountPercent">درصد تخفیف فاکتور:</label>
+			<InputNumber id="FactorDiscountPercent" @bind-Value="buyMaster.FactorDiscountPercent" class="form-control" @onfocusout="FactorDiscountPercentLostFocus" />
+		</div>
+		<div class="form-group">
+			<label for="FactorDiscountPrice">قیمت تخفیف فاکتور:</label>
+			<CurrencyInput Value="@buyMaster.FactorDiscountPrice" ValueChanged="@FactorDiscountPriceChanged" />
+		</div>
+		<div class="form-group">
+			<label for="TotalPriceAfterDiscount">جمع قیمت بعد از تخفیف:</label>
+			<span class="form-control"> @buyMaster.TotalPriceAfterDiscount.ToString("N0") </span>
+		</div>
+		<div class="form-group">
+			<label for="TotalTaxPrice">جمع مالیات:</label>
+			<span class="form-control"> @buyMaster.TotalTaxPrice.ToString("N0") </span>
+		</div>
+		<div class="form-group">
+			<label for="FinalPrice">قیمت نهایی:</label>
+			<span class="form-control"> @buyMaster.FinalPrice.ToString("N0") </span>
+		</div>
+	</div>
+
+	<button type="submit" class="btn btn-primary">ذخیره</button>
+	<button type="button" class="btn btn-secondary" @onclick="ReturnToList">لیست فاکتور خرید</button>
+	<button type="button" @onclick="Finish" class="btn btn-success">ثبت نهایی</button>
+
+</EditForm>
+<hr />
+<h6>جزئیات فاکتور خرید</h6>
+<button type="button" @onclick="AddBuyDetail" class="btn btn-success">افزودن ردیف</button>
+<div class="table-responsive d-none d-md-block">
+	<table class="table table-striped">
+		<thead>
+			<tr>
+				<th>کالا</th>
+				<th>تعداد</th>
+				<th>اشانتیون</th>
+				<th>فی خرید</th>
+				<th>فی فروش</th>
+				<th>مبلغ کل</th>
+				<th>تخفیف</th>
+				<th>مالیات</th>
+				<th>قابل پرداخت</th>
+				<th>عملیات</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var detail in buyDetails)
+			{
+				<tr>
+					<td>@detail.ProductName</td>
+					<td>@detail.Quantity.ToString("N2")</td>
+					<td>@detail.QuantityComplimentary.ToString("N0")</td>
+					<td>@detail.FeeBuy.Value.ToString("N0")</td>
+					<td>@detail.FeeSale.ToString("N0")</td>
+					<td>@detail.TotalPrice.ToString("N0")</td>
+					<td>@detail.DiscountPrice.ToString("N0")</td>
+					<td>@detail.TaxPrice.ToString("N0")</td>
+					<td>@detail.FinalPrice.ToString("N0")</td>
+					<td>
+						<button type="button" @onclick="(() => EditBuyDetail(detail))" class="btn btn-warning btn-sm">ویرایش</button>
+						<button type="button" @onclick="(() => DeleteBuyDetail(detail))" class="btn btn-danger btn-sm">حذف</button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+</div>
+
+<div class="d-block d-md-none">
+	@foreach (var detail in buyDetails)
+	{
+		<div class="card mb-3">
+			<div class="card-body">
+				<div class="row">
+					<div class="col-6">
+						<strong>کالا:</strong>
+					</div>
+					<div class="col-6">
+						@detail.ProductName
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>تعداد:</strong>
+					</div>
+					<div class="col-6">
+						@detail.Quantity.ToString("N2")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>اشانتیون:</strong>
+					</div>
+					<div class="col-6">
+						@detail.QuantityComplimentary.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>فی خرید:</strong>
+					</div>
+					<div class="col-6">
+						@detail.FeeBuy.Value.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>فی فروش:</strong>
+					</div>
+					<div class="col-6">
+						@detail.FeeSale.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>مبلغ کل:</strong>
+					</div>
+					<div class="col-6">
+						@detail.TotalPrice.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>تخفیف:</strong>
+					</div>
+					<div class="col-6">
+						@detail.DiscountPrice.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>مالیات:</strong>
+					</div>
+					<div class="col-6">
+						@detail.TaxPrice.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-6">
+						<strong>قابل پرداخت:</strong>
+					</div>
+					<div class="col-6">
+						@detail.FinalPrice.ToString("N0")
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-12 text-center mt-2">
+						<button type="button" @onclick="(() => EditBuyDetail(detail))" class="btn btn-warning btn-sm">ویرایش</button>
+						<button type="button" @onclick="(() => DeleteBuyDetail(detail))" class="btn btn-danger btn-sm">حذف</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+</div>
+
+
+<Client.Pages.People.PeopleSearchModal @ref="peopleSearchModal" OnPersonSelected="HandlePersonSelected" />
+<AddBuyDetaile @ref="AddBuyDetailModal" OnBuyDetailAddedOrEdited="BuyDetaileAdded" />
+<_ErrorModal @ref="errorModal" />
+
+
+@code {
+	private BuyMaster buyMaster = new BuyMaster();
+	private List<BuyDetail> buyDetails = new List<BuyDetail>();
+
+	private People.PeopleSearchModal peopleSearchModal;
+
+	private AddBuyDetaile AddBuyDetailModal;
+
+	private string FactorDiscountPrice { get; set; } = "0";
+
+	private _ErrorModal errorModal;
+
+
+	[Parameter]
+	public string buymasterId { get; set; } = "0";
+
+	protected override async Task OnInitializedAsync()
+	{
+		// Fetch BuyMaster and BuyDetails (modify the URL as needed)
+		//buyDetails = await Http.GetFromJsonAsync<List<BuyDetail>>("api/buydetail/{buyMasterId}");
+	}
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		// isMobile = await js.InvokeAsync<bool>("isMobile");
+		if (firstRender)
+		{
+			await SetToken();
+			ApiClient.SetToken(Token);
+
+			if (buymasterId == "0" || string.IsNullOrEmpty(buymasterId))
+			{
+				buyMaster = new BuyMaster();
+				buyMaster.FactorCode = await ApiClient.GetAsync<int>("Buy/GetFactorCode");
+				buyMaster.BuyDetailS = new List<BuyDetail>();
+				buyMaster.BuyTypeId = 1;
+			}
+			else if (Convert.ToInt32(buymasterId) > 0)
+			{
+				buyMaster = await ApiClient.GetAsync<BuyMaster>($"Buy/GetBuyMaster/{buymasterId}");
+				buyMaster.BuyDetailS = await ApiClient.GetAsync<List<BuyDetail>>($"Buy/GetBuyDetailsByBuyMasterId/{buymasterId}");
+				buyDetails = buyMaster.BuyDetailS;
+				buyMaster.Calc();
+			}
+			await InvokeAsync(StateHasChanged);
+
+		}
+
+
+	}
+	private async Task AddBuyDetail()
+	{
+		if (validation())
+		{
+			buyMaster.Calc();
+			Response saveResponse;
+			if (buyMaster.BuyDetailS.Count == 0 && buyMaster.BuyMasterId == 0)
+			{
+				saveResponse = await ApiClient.PostAsync<Response>("Buy/CreateBuyMaster", buyMaster);
+				if (saveResponse.status == "200")
+				{
+					var resultbuymaster = JsonConvert.DeserializeObject<BuyMaster>(saveResponse.data.ToString());
+
+					buyMaster.BuyMasterId = resultbuymaster.BuyMasterId;
+
+				}
+				else
+				{
+					errorModal.Show(saveResponse.message, "خطا");
+					return;
+				}
+			}
+			AddBuyDetailModal.ShowAddModal(buyMaster.BuyMasterId);
+		}
+	}
+	private async Task Finish()
+	{
+		try
+		{
+			Response saveResponse;
+			saveResponse = await ApiClient.PostAsync<Response>("Buy/CreateInvVoucher", buyMaster);
+			if (saveResponse.status == "200")
+			{
+				errorModal.Show(saveResponse.message, "پیغام");
+			}
+			else
+			{
+				errorModal.Show(saveResponse.message, "خطا");
+			}
+		}
+		catch
+		{
+			errorModal.Show("بروز خطا در ثبت نهایی خرید", "خطا");
+
+		}
+	}
+	private async Task EditBuyDetail(BuyDetail detail)
+	{
+		await AddBuyDetailModal.ShowEditModal(detail.BuyDetailId);
+	}
+	private bool validation()
+	{
+		if (buyMaster.ProducerId == 0)
+		{
+			errorModal.Show("لطفا تامین کننده را انتخاب کنید", "خطا");
+			return false;
+		}
+
+		return true;
+	}
+	private async Task DeleteBuyDetail(BuyDetail detail)
+	{
+		try
+		{
+			Response delResponse = await ApiClient.GetAsync<Response>($"Buy/DeleteBuyDetail/{detail.BuyDetailId}");
+			buyMaster.BuyDetailS = await ApiClient.GetAsync<List<BuyDetail>>($"Buy/GetBuyDetailsByBuyMasterId/{buyMaster.BuyMasterId}");
+			buyDetails = buyMaster.BuyDetailS;
+			buyMaster.Calc();
+			await InvokeAsync(StateHasChanged);
+		}
+		catch
+		{
+			errorModal.Show("بروز خطا در حذف ردیف خرید", "خطا");
+
+		}
+	}
+
+	private void HandlePersonSelected(PeopleDto people)
+	{
+		buyMaster.ProducerName = people.FullName;
+		buyMaster.ProducerId = people.PeopleId;
+		InvokeAsync(StateHasChanged);
+
+	}
+
+	private void OpenPeopleSearchModal()
+	{
+		peopleSearchModal.Show();
+	}
+	private async Task HandleValidSubmit()
+	{
+		// Logic for saving buy master
+		//await Http.PostAsJsonAsync("api/buymaster", buyMaster);
+		if (validation())
+		{
+			try
+			{
+				Response saveResponse;
+				buyMaster.Calc();
+				if (buyMaster.BuyMasterId == 0)
+				{
+					saveResponse = await ApiClient.PostAsync<Response>("Buy/CreateBuyMaster", buyMaster);
+				}
+				else
+				{
+					saveResponse = await ApiClient.PostAsync<Response>("Buy/UpdateBuyMaster", buyMaster);
+				}
+
+				if (saveResponse.status == "200")
+				{
+					if (buyMaster.BuyMasterId == 0)
+					{
+						var resultbuymaster = JsonConvert.DeserializeObject<BuyMaster>(saveResponse.data.ToString());
+						buyMaster.BuyMasterId = resultbuymaster.BuyMasterId;
+					}
+					errorModal.Show(saveResponse.message, "پیغام");
+				}
+				else
+				{
+					errorModal.Show(saveResponse.message, "خطا");
+				}
+
+
+			}
+			catch (Exception ex)
+			{
+				errorModal.Show("بروز خطا در ذخیره فاکتور خرید", "خطا");
+			}
+		}
+
+	}
+
+
+
+	private void FactorDiscountPriceChanged(string value)
+	{
+		if (value != null)
+		{
+
+			FactorDiscountPrice = value;
+			buyMaster.FactorDiscountPrice = long.Parse(value.ToString());
+			InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private void FactorDiscountPercentLostFocus()
+	{
+		buyMaster.Calc();
+		InvokeAsync(StateHasChanged);
+	}
+
+
+	private async Task BuyDetaileAdded(BuyDetail buydetailAdd)
+	{
+		buyMaster.BuyDetailS = await ApiClient.GetAsync<List<BuyDetail>>($"Buy/GetBuyDetailsByBuyMasterId/{buyMaster.BuyMasterId}");
+		buyDetails = buyMaster.BuyDetailS;
+		buyMaster.Calc();
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private void ReturnToList()
+	{
+		OpenLink("/buy-List");
+	}
+
+}

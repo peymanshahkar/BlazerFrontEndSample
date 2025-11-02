@@ -1,0 +1,197 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+
+@inherits BaseComponent;
+
+<style>
+    .modal-dialog {
+        max-width: 98%; /* عرض مودال را به ۹۸ درصد صفحه تنظیم می‌کند */
+        width: 98%; /* عرض مودال را به ۹۸ درصد صفحه تنظیم می‌کند */
+        margin: 1% auto; /* مرکز‌چینی مودال */
+    }
+
+    .modal-content {
+        width: 100%; /* عرض محتوای مودال را به ۱۰۰ درصد تنظیم می‌کند */
+    }
+</style>
+
+<link href="css/productlist.css" rel="stylesheet" />
+
+
+<div class="modal" tabindex="-1" role="dialog" style="display:@(isVisible ? "block" : "none")">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">جستجوی کالا</h5>
+                <button type="button" class="close" @onclick="CloseModal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="search-bar">
+                    <div class="form-group">
+                        <label for="searchBarcode">جستجو بر اساس بارکد: @searchedBarcode</label>
+                        <input type="text" @ref="searchBarcodeInput" id="searchBarcode" maxlength="20" @bind-value="searchBarcode" class="form-control" @onkeydown="HandleKeydown" @onfocusout="OnLostFocus" />
+                    </div>
+                    @*                     <div id="scanner-container" style="width: 100%; height: 100%;"></div>
+ *@                    <div class="form-group">
+                        <label for="searchName">جستجو بر اساس نام کالا:</label>
+                        <input id="searchName" maxlength="100" @bind="searchName" class="form-control" />
+                    </div>
+                </div>
+                <button @ref="seearchbutton" class="btn btn-primary" @onclick="SearchProducts">جستجو</button>
+
+                @if (products != null && products.Any())
+                {
+                    <div class="d-block d-md-none">
+                        @foreach (var product in products)
+                        {
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small>@product.Title</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <small>	@product.Barcode</small>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small>قیمت خرید:</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <small>	@product.FeeBuy.ToString("N0") </small>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-12 text-center mt-2">
+                                            <button class="btn btn-success" @onclick="() => SelectProduct(product)">انتخاب</button>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p>هیچ کالایی یافت نشد.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string searchBarcode = string.Empty;
+    private string searchedBarcode = string.Empty;
+    private string searchName = string.Empty;
+    private List<Product> products;
+    private bool isVisible = false;
+
+    private ElementReference searchBarcodeInput;
+    private ElementReference seearchbutton;
+
+    [Parameter]
+    public EventCallback<Product> OnProductSelected { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await SetToken();
+            ApiClient.SetToken(Token);
+
+            await LoadProducts();
+            await searchBarcodeInput.FocusAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+     
+    }
+
+    private async Task LoadProducts()
+    {
+        products = await ApiClient.GetAsync<List<Product>>("Products/GetTop50");
+
+        searchBarcode = string.Empty;
+        searchedBarcode = string.Empty;
+        await searchBarcodeInput.FocusAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SearchProducts()
+    {
+        if (!string.IsNullOrEmpty(searchBarcode) || !string.IsNullOrEmpty(searchName))
+        {
+            if (string.IsNullOrEmpty(searchBarcode) && string.IsNullOrEmpty(searchName))
+            {
+                await searchBarcodeInput.FocusAsync();
+                return;
+            }
+            string endpoint = "Products/SearchProducts";
+            products = await ApiClient.PostAsync<List<Product>>(endpoint,
+                new ProductSearchRequest { Barcode = searchBarcode, ProductName = searchName });
+
+
+            await searchBarcodeInput.FocusAsync();
+            await InvokeAsync(StateHasChanged);
+            
+        }
+        else
+        {
+            await LoadProducts();
+            //
+        }
+    }
+
+    private void HandleKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            seearchbutton.FocusAsync();
+            searchBarcodeInput.FocusAsync();
+        }
+    }
+
+    private void OnLostFocus()
+    {
+        if (!string.IsNullOrEmpty(searchBarcode.Trim()))
+        {
+            SearchProducts();
+
+            searchedBarcode = searchBarcode;
+
+            searchBarcode = string.Empty;
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CloseModal()
+    {
+        isVisible = false;
+        StateHasChanged();
+    }
+
+    private void SelectProduct(Product product)
+    {
+        OnProductSelected.InvokeAsync(product);
+        CloseModal();
+    }
+
+    public void ShowModal()
+    {
+        isVisible = true;
+        searchBarcode = string.Empty;
+        searchedBarcode = string.Empty;
+
+        StateHasChanged();
+    }
+}

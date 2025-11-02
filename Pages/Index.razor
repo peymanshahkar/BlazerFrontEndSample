@@ -1,0 +1,25 @@
+﻿@page "/"
+
+@inherits BaseComponent
+
+<PageTitle>خانه</PageTitle>
+
+<h1>اپلیکیشن همراه داریان</h1>
+
+مدیریت فروشگاه در جیب شما
+
+
+@code{
+
+    protected override async void OnAfterRender(bool firstRender)
+    {
+
+        if(firstRender)
+        {
+            await SetToken();
+        }
+        //  OpenLink("/Product/product-list");
+        base.OnAfterRender(firstRender);
+
+    }
+}

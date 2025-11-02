@@ -1,0 +1,49 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">اپلیکیشن همراه داریان <img src="images/DarianLogo128.png" width="32px" height="32" /> </a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span>صفحه اصلی
+            </NavLink>
+        </div>
+        <li class="nav-item">
+            <NavLink class="nav-link" href="/Product/product-list/">
+                <span class="oi oi-list"></span> لیست کالاها
+            </NavLink>
+        </li>
+        <li class="nav-item">
+            <NavLink class="nav-link" href="/Product/create-product">
+                <span class="oi oi-cart"></span>افزودن کالای جدید
+            </NavLink>
+        </li>
+        <li class="nav-item">
+            <NavLink class="nav-link" href="/Product/decrease-Balance">
+                <span class="oi oi-cart"></span>کاهش موجودی
+            </NavLink>
+        </li>
+        <li class="nav-item">
+            <NavLink class="nav-link" href="/buy-List">
+                <span class="oi oi-list"></span>فاکتور خرید
+            </NavLink>
+        </li>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

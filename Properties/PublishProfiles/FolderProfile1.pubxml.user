@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121.
+-->
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>E:\Projects\DarianPDA14031112\DarianPDA\Client\bin\Release\net8.0\publish\</_PublishTargetUrl>
+    <History>True|2025-02-11T14:17:09.0766978Z||;True|2025-02-09T20:47:42.5075138+03:30||;True|2025-02-09T20:46:47.2087832+03:30||;True|2025-02-09T19:30:55.1628951+03:30||;True|2025-02-09T19:09:52.2263578+03:30||;True|2025-02-09T17:17:50.4212439+03:30||;True|2025-02-09T16:52:50.0256839+03:30||;True|2025-02-08T13:09:13.5193426+03:30||;True|2025-02-03T13:48:00.6461462+03:30||;True|2025-02-02T12:02:24.0114268+03:30||;True|2025-02-02T12:01:19.0759070+03:30||;True|2025-02-01T17:57:17.8949507+03:30||;True|2025-02-01T17:56:45.9080521+03:30||;True|2025-02-01T17:32:49.3680369+03:30||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+</Project>

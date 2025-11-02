@@ -1,0 +1,210 @@
+﻿@page "/Product/decrease-Balance"
+@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+@using Microsoft.AspNetCore.Mvc;
+
+
+@inherits BaseComponent;
+
+<h3>کاهش موجودی کالا</h3>
+
+<div class="form-group">
+
+    <label for="searchBarcode">جستجو بر اساس بارکد:</label>
+    <input type="text" @ref="searchBarcodeInput" @bind="searchBarcode" id="searchBarcode" class="form-control" />
+
+</div>
+<button class="btn btn-primary" @onclick="SearchProducts">جستجو</button>
+
+@if (selectedProduct != null)
+{
+
+    <EditForm Model="selectedProduct" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="form-container">
+            <div class="form-group">
+                <label for="title">عنوان کالا:</label>
+                @selectedProduct.Title
+            </div>
+            <div class="form-group">
+                <label for="feeSale">قیمت فروش:</label>
+                @selectedProduct.FeeSale.ToString("N0")
+
+            </div>
+
+            <div class="form-group">
+                <label>قیمت پس از تخفیف:</label>
+                @selectedProduct.FeeSaleAfterDiscount.ToString("N0")
+            </div>
+
+
+            <div class="form-group">
+                <label for="productBalance">موجودی محصول:</label>
+                @selectedProduct.ProductBalance
+            </div>
+
+            <div class="form-group">
+                <label for="decreaseCount">تعداد کاهش:</label>
+                <input type="number" id="decreaseCount" @bind="decreaseCount" min="0" max="3000" class="form-control" style="width:25%; background-color:yellow;" />
+                @* 			<InputNumber id="decreaseCount" @bind-Value="decreaseCount"  class="form-control" style="width:25%; background-color:yellow;" />
+            *@
+            </div>
+
+        </div>
+
+        <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
+        <button type="button" class="btn btn-secondary" @onclick="NavigateBack">بازگشت</button>
+
+    </EditForm>
+}
+
+<_ErrorModal @ref="errorModal" />
+
+
+
+@if (isSubmitted)
+{
+    <div class="alert alert-success mt-3">
+        تغییرات با موفقیت ذخیره شد.
+    </div>
+}
+
+@if (isSearching)
+{
+    <div class="alert alert-info mt-3">
+        در حال بارگذاری اطلاعات کالا....
+    </div>
+}
+
+@code {
+
+
+    private ElementReference searchBarcodeInput;
+
+
+    private int decreaseCount { get; set; }
+
+    private bool isSubmitted = false;
+    private bool isSearching = false;
+
+    private string searchBarcode = string.Empty;
+
+    private ProductPriceAndBalanceDto product = new ProductPriceAndBalanceDto();
+
+
+    private List<Product> products;
+
+    private ProductPriceAndBalanceDto selectedProduct;
+
+
+
+    private _ErrorModal errorModal;
+
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await SetToken();
+            ApiClient.SetToken(Token);
+
+            await searchBarcodeInput.FocusAsync();
+        }
+
+    }
+
+
+
+    private void ShowErrorMessage(string title, string message)
+    {
+        errorModal.Show(message, title);
+    }
+
+    private bool validation()
+    {
+        return true;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+
+        if (!isSubmitted && selectedProduct != null)
+        {
+            if (validation() && decreaseCount > 0)
+            {
+
+                var SendObject = new ProductPriceAndBalanceDto
+                    {
+                        AddOnlineSalePricePercent = selectedProduct.AddOnlineSalePricePercent,
+                        Barcode = selectedProduct.Barcode,
+                        DiscountFeeSale = selectedProduct.DiscountFeeSale,
+                        FeeSale = selectedProduct.FeeSale,
+                        DiscountPercent = selectedProduct.DiscountPercent,
+                        enabledCalc = false,
+                        FeeBuy = selectedProduct.FeeBuy,
+                        IsActiveOnlineSale = selectedProduct.IsActiveOnlineSale,
+                        OnlineDiscountPercent = selectedProduct.OnlineDiscountPercent,
+                        OnlineDiscountPrice = selectedProduct.OnlineDiscountPrice,
+                        OnlineSalePrice = selectedProduct.OnlineSalePrice,
+                        ProductBalance = decreaseCount,
+                        ProductId = selectedProduct.ProductId,
+                        Title = selectedProduct.Title,
+                        UnitId = selectedProduct.UnitId
+
+                    };
+
+
+                var result = await ApiClient.PostAsync<bool>("Products/DecreaseProductBalance", SendObject);
+                if (result)
+                {
+                    ShowErrorMessage("پیغام", "موجودی با موفقیت کاهش یافت" + product.Title);
+                    selectedProduct.ProductBalance = selectedProduct.ProductBalance - decreaseCount;
+                    decreaseCount = 0;
+                    isSubmitted = true;
+                    await InvokeAsync(StateHasChanged);
+
+                    //NavigateBack();
+                }
+                else
+                {
+                    ShowErrorMessage("خطا", "مقادیر ورودی نامعتبر می باشد");
+                }
+            }
+        }
+    }
+
+
+    private async Task SearchProducts()
+    {
+        isSearching = true;
+        //await InvokeAsync(StateHasChanged);
+        if (!string.IsNullOrEmpty(searchBarcode))
+        {
+            string endpoint = "Products/SearchProducts";
+            products = await ApiClient.PostAsync<List<Product>>(endpoint,
+                new ProductSearchRequest { Barcode = searchBarcode, ProductName = string.Empty });
+
+            if (products.Any())
+            {
+                selectedProduct = products.FirstOrDefault().ConvertToProductPriceAndBalanceDto();
+                //FeeSale = selectedProduct.FeeSale;
+            }
+
+
+        }
+        isSearching = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void NavigateBack()
+    {
+        //NavigationManager.NavigateTo("/products");
+        OpenLink("/Product/product-list/");
+    }
+}

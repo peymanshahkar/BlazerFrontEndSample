@@ -1,0 +1,348 @@
+﻿@page "/Product/create-product"
+@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+@using Microsoft.AspNetCore.Mvc;
+
+@inherits BaseComponent;
+
+<h3>افزودن کالای جدید</h3>
+
+<EditForm Model="product" OnValidSubmit="HandleCreateProduct">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-container">
+        <div class="form-group">
+            <label for="Code">کد:</label>
+            <InputText id="Code" @bind-Value="product.Code" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label for="Title">عنوان:</label>
+            <InputText id="Title" @bind-Value="product.Title" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label for="barCode">بارکد:</label>
+            <InputText id="barCode" @bind-Value="product.Barcode" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label for="Description">توضیحات:</label>
+            <InputTextArea id="Description" @bind-Value="product.Description" class="form-control"></InputTextArea>
+        </div>
+        <div class="form-group">
+            <label for="ProductGroupId">گروه کالا:</label>
+            <InputSelect id="ProductGroupId" @bind-Value="product.ProductGroupId" @onchange="SelectedGroupChange" class="form-control">
+                <option value="">لطفا یک گروه انتخاب کنید</option>
+                @if (productGroups != null)
+                {
+                    @foreach (var group in productGroups)
+                    {
+                        <option value="@group.ProductGroupId">@group.Title</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+
+        <div class="form-group">
+            <label for="ProductBrandId">برند کالا:</label>
+            <InputSelect id="ProductBrandId" @bind-Value="product.ProductBrandId" @onchange="SelectedBrandChange" class="form-control">
+                <option value="">لطفا یک برند را انتخاب کنید</option>
+                @if (productBrands != null)
+                {
+                    @foreach (var brand in productBrands)
+                    {
+                        <option value="@brand.ProductBrandId">@brand.Title</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+        <div class="form-group">
+            <label for="ProductBalance">موجودی:</label>
+            <InputNumber id="ProductBalance" @bind-Value="product.ProductBalance" class="form-control" ></InputNumber>
+        </div>
+        <div class="form-group">
+            <label for="FeeBuy">مبلغ خرید:</label>
+            <CurrencyInput Value="@FeeBuy" ValueChanged="@BuyValueChanged" />
+        </div>
+
+        <div class="form-group">
+            <label>قیمت فروش:</label>
+            <CurrencyInput Value="@FeeSale" ValueChanged="@SaleValueChanged" />
+        </div>
+
+        <div class="form-group">
+            <label for="DiscountPercent">درصد تخفیف:</label>
+            <InputNumber id="DiscountPercent" @bind-Value="product.DiscountPercent" class="form-control"  @onchange="OnchangeDiscountPercent" @onfocusout="OnchangeDiscountPercent"></InputNumber>
+        </div>
+        <div class="form-group">
+            <label>مبلغ تخفیف:</label>
+            <CurrencyInput Value="@DiscountFeeSale" ValueChanged="@DiscountFeeSaleValueChanged" />
+        </div>
+        <div class="form-group">
+            <label>قیمت پس از تخفیف:</label>
+            @product.FeeSaleAfterDiscount.ToString("N0")
+        </div>
+        <div class="form-group">
+            <label>
+                <InputCheckbox @bind-Value="product.IsActive" /> فعال
+            </label>
+        </div>
+        <hr />
+
+        <div class="form-group">
+            <label for="isActiveOnlineSale">فعال در فروش آنلاین:</label>
+            <input type="checkbox" id="isActiveOnlineSale" @onchange="IsActiveOnlineSaleChanged" />
+        </div>
+            @if (product.IsActiveOnlineSale)
+            {
+                <div class="form-group">
+                    <label>قیمت فروش آنلاین:</label>
+                    <CurrencyInput Value="@OnlineSalePrice" ValueChanged="@OnlineSaleValueChanged" />
+                </div>
+
+                <div class="form-group">
+                    <label for="OnlineDiscountPercent">درصد تخفیف:</label>
+                    <InputNumber id="OnlineDiscountPercent" @bind-Value="product.OnlineDiscountPercent" class="form-control"  @onchange="OnchangeOnlineDiscountPercent"></InputNumber>
+                </div>
+
+                <div class="form-group">
+                    <label>مبلغ تخفیف:</label>
+                    <CurrencyInput Value="@OnlineDiscountPrice" ValueChanged="@OnlineDiscountPriceValueChanged" />
+                </div>
+
+                <div class="form-group">
+                    <label>قیمت پس از تخفیف:</label>
+                    @product.OnlineSalePriceAfterDiscount.ToString("N0")
+                </div>
+            }
+        </div>
+    <button type="submit" class="btn btn-primary">ثبت کالا</button>
+    <button type="button" class="btn btn-primary" @onclick="NewProduct">کالای جدید</button>
+    <button type="button" class="btn btn-secondary" @onclick="NavigateBack">بازگشت</button>
+</EditForm>
+
+
+<_ErrorModal @ref="errorModal" />
+
+@if (isSubmitted)
+{
+    <div class="alert alert-success mt-3">
+        کالا با موفقیت ثبت شد!
+    </div>
+}
+
+@code {
+    private Product product = new Product();
+    private bool isSubmitted = false;
+
+    private _ErrorModal errorModal;
+
+    private List<ProductGroupDto> productGroups;
+    private List<ProductBrandDto> productBrands;
+
+    // private CurrencyInput feebuyCurrency;
+
+    private string FeeBuy { get; set; } = "0";
+    private string FeeSale { get; set; } = "0";
+    private string DiscountFeeSale { get; set; } = "0";
+
+    private string OnlineSalePrice { get; set; } = "0";
+    private string OnlineDiscountPrice { get; set; } = "0";
+
+    protected async override void OnInitialized()
+    {
+        // feebuyCurrency.ValueChanged=
+        product.enabledCalc = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await SetToken();
+            ApiClient.SetToken(Token);
+
+            productGroups = await ApiClient.GetAsync<List<ProductGroupDto>>("Products/GetAllProductGroup");
+
+            productBrands = await ApiClient.GetAsync<List<ProductBrandDto>>("Products/GetAllProductBrand");
+
+            product.Code = await ApiClient.GetAsync<string>("Products/GetNewCode");
+
+            
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    private void BuyValueChanged(string value)
+    {
+        if (value != null)
+        {
+
+            FeeBuy = value;
+            product.FeeBuy = long.Parse(value.ToString());
+
+        }
+    }
+    private void SaleValueChanged(string value)
+    {
+        if (value != null)
+        {
+
+            FeeSale = value;
+            product.FeeSale = long.Parse(value);
+
+
+            if (product.IsActiveOnlineSale)
+            {
+                OnlineSalePrice = FeeSale;
+                product.OnlineSalePrice = product.FeeSale;
+                InvokeAsync(StateHasChanged);
+            }
+
+        }
+    }
+    private void DiscountFeeSaleValueChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            DiscountFeeSale = value;
+            product.DiscountFeeSale = long.Parse(value);
+        }
+    }
+
+    private void OnlineSaleValueChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            OnlineSalePrice = value;
+            product.OnlineSalePrice = long.Parse(value);
+
+        }
+    }
+
+    private void OnlineDiscountPriceValueChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            OnlineDiscountPrice = value;
+            product.OnlineDiscountPrice = long.Parse(value);
+        }
+    }
+
+    private async void OnchangeDiscountPercent(object? value)
+    {
+        DiscountFeeSale = product.DiscountFeeSale.ToString();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnchangeOnlineDiscountPercent(object? value)
+    {
+        OnlineDiscountPrice = product.OnlineDiscountPrice.ToString();
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task IsActiveOnlineSaleChanged(ChangeEventArgs e)
+    {
+        bool value = (bool)e.Value;
+        product.IsActiveOnlineSale = value;
+
+        if (product.IsActiveOnlineSale)
+        {
+            OnlineSalePrice = FeeSale;
+            product.OnlineSalePrice = product.FeeSale;
+        }
+        else
+        {
+            OnlineSalePrice = "0";
+            product.OnlineSalePrice = product.FeeSale;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+    private void ShowErrorMessage(string title, string message)
+    {
+        errorModal.Show(message, title);
+    }
+
+    private void SelectedGroupChange(ChangeEventArgs e)
+    {
+        var selectedValue = e.Value.ToString();
+        if (int.TryParse(selectedValue, out var groupId))
+        {
+            product.ProductGroupId = groupId;
+        }
+    }
+
+    private void SelectedBrandChange(ChangeEventArgs e)
+    {
+        var selectedvalue = e.Value.ToString();
+        if (int.TryParse(selectedvalue, out var brandId))
+        {
+            product.ProductBrandId = brandId;
+        }
+    }
+
+    private bool validation()
+    {
+        string errorMessage = "";
+        if (product.IsActiveOnlineSale)
+        {
+            if (product.OnlineSalePrice == 0)
+            {
+                errorMessage += "مبلغ فروش آنلاین اجباری است" + '\n';
+            }
+        }
+
+        if (!string.IsNullOrEmpty(errorMessage))
+        {
+            ShowErrorMessage("اخطار", errorMessage);
+            return false;
+        }
+
+        return true;
+    }
+    private async Task HandleCreateProduct()
+    {
+
+        if (!isSubmitted)
+        {
+            if (validation())
+            {
+                var result = await ApiClient.PostAsync<Product>("Products/AddProduct", product);
+                if (result.ProductId>0)
+                {
+                    ShowErrorMessage("پیغام", "کالا ثبت شد: " + product.Title);
+                    isSubmitted = true;
+                    await InvokeAsync(StateHasChanged);
+                }
+                else
+                {
+                    ShowErrorMessage("خطا", "مقادیر ورودی نامعتبر می باشد");
+                }
+            }
+        }
+
+    }
+
+    private async void NewProduct()
+    {
+        product = new Product();
+        product.enabledCalc = true;
+        isSubmitted = false;
+        product.Code = await ApiClient.GetAsync<string>("Products/GetNewCode");
+        FeeBuy = "0";
+        FeeSale = "0";
+        DiscountFeeSale = "0";
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void NavigateBack()
+    {
+        //NavigationManager.NavigateTo("/products");
+        OpenLink("/Product/product-list/");
+    }
+}

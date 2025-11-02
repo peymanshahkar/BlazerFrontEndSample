@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>DarianLogo.ico</ApplicationIcon>
+    <Title>Darian PDA Tools</Title>
+    <Description>Darian PDA Tools</Description>
+    <Copyright>Copyright in Darian Co @ 2024</Copyright>
+    <PackageIcon>DarianLogo128.png</PackageIcon>
+    <AssemblyName>Client</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="DarianLogo.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\..\..\DarianLogo128.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="wwwroot\css\ProductList.css" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BlazorBarcodeScanner.ZXing.JS" Version="1.0.4" />
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="ZXing.Net" Version="0.16.10" />
+    <PackageReference Include="ZXing.Net.Mobile" Version="2.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\DarianTablet.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

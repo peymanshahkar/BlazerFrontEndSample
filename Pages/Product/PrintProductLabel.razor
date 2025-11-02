@@ -1,0 +1,106 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using System.Threading.Tasks
+@using Microsoft.AspNetCore.Components
+@using DarianTablet.Shared.DataModel;
+
+@inherits BaseComponent
+
+<style>
+	.print-container {
+		width: 100%;
+		height: 100%;
+		border: 1px solid black;
+		padding: 10px;
+		text-align: center;
+	}
+
+	.product-info {
+		margin-bottom: 20px;
+	}
+
+
+	.strikethrough-thick {
+		position: relative;
+		display: inline-block;
+	}
+
+	.strikethrough-thick::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		width: 100%;
+		height: 5px; /* ضخامت خط را اینجا تنظیم کنید */
+		background-color: black; /* رنگ خط را اینجا تنظیم کنید */
+		transform: translateY(-50%);
+	}
+</style>
+
+<script>
+	function printDiv(divId) {
+		var printContents = document.getElementById(divId).innerHTML;
+		var originalContents = document.body.innerHTML;
+
+		document.body.innerHTML = printContents;
+
+		window.print();
+
+		document.body.innerHTML = originalContents;
+	}
+</script>
+
+<div class="modal" tabindex="-1" role="dialog" style="display:@(isVisible ? "block" : "none")">
+	<div class="modal-dialog" role="document" style="max-width: 8cm; width: 8cm;height: 6cm; margin: 1% auto; ">
+		<div class="modal-content" style="width: 100%;">
+			<div class="modal-header">
+				<h5 class="modal-title">چاپ برچسب قیمت کالا</h5>
+				<button type="button" class="close" @onclick="CloseModal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<div class="print-container" id="printableArea">
+					<div class="product-info">
+						<p><h5> @product.Title  </h5></p>
+						<p> <small>قیمت:</small> <h5> @product.FeeSale.ToString("N0")  </h5></p>
+						@if (product.DiscountFeeSale > 0)
+						{
+							<p> <small>مصرف کننده:</small>  <strong class="strikethrough-thick"> @OrgFee </strong> </p>
+						}
+					</div>
+				</div>
+				<button class="btn btn-primary" @onclick="Print">چاپ</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	private bool isVisible = false;
+	private Product product = new Product();
+	string OrgFee = string.Empty;
+
+
+
+	public async Task Show(int productId)
+	{
+		isVisible = true;
+		product = await ApiClient.GetAsync<Product>($"Products/GetById/{productId}");
+		if (product.DiscountFeeSale > 0)
+		{
+			OrgFee = (product.FeeSale + product.DiscountFeeSale).ToString("N0");
+		}
+		await InvokeAsync( StateHasChanged);
+	}
+
+	private void CloseModal()
+	{
+		isVisible = false;
+		StateHasChanged();
+	}
+
+	private void Print()
+	{
+		js.InvokeVoidAsync("printDiv", "printableArea");
+	}
+}

@@ -1,0 +1,248 @@
+﻿@page "/Product/product-list"
+@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+
+
+
+
+@inherits BaseComponent;
+
+
+
+<link href="css/productlist.css" rel="stylesheet" />
+
+<h3>لیست کالاها</h3>
+<div class="form-container">
+	<div class="form-group">
+
+		<label for="searchBarcode">جستجو بر اساس بارکد: @searchedBarcode</label>
+		<input type="text" @ref="searchBarcodeInput" id="searchBarcode" maxlength="20" @bind-value="searchBarcode" class="form-control" @onkeydown="HandleKeydown" @onfocusout="OnLostFocus" />
+		@if (isMobile)
+		{
+			<button type="button" id="btnScanBarcode" class="btn btn-success" @onclick="ScanBarcode" >اسکن</button>
+		}
+
+	</div>
+
+	<div class="form-group">
+		<label for="searchName">جستجو بر اساس نام کالا:</label>
+		<input id="searchName" maxlength="100" @bind="searchName" class="form-control" />
+	</div>
+</div>
+<button @ref="seearchbutton" class="btn btn-primary" @onclick="SearchProducts">جستجو</button>
+
+@if (products != null && products.Any())
+{
+	@if (isMobile)
+	{
+		// Mobile view - use card layout
+		<div class="list-group">
+			@foreach (var product in products)
+			{
+				<div class="product-card list-group-item d-flex justify-content-between align-items-center">
+					<div><strong>کد:</strong> @product.Code</div>
+					<div><strong>عنوان:</strong> @product.Title</div>
+					<div><strong>بارکد:</strong> @product.Barcode</div>
+					<div><strong>توضیحات:</strong> @product.Description</div>
+					<div><strong>گروه کالا:</strong> @product.GroupTitle</div>
+					<div><strong>برند کالا:</strong> @product.ProductBrandTitle</div>
+					<div><strong>مبلغ خرید:</strong> @product.FeeBuy.ToString("N0")</div>
+					<div><strong>قیمت فروش:</strong> @product.FeeSale.ToString("N0")</div>
+					<div><strong>درصد تخفیف:</strong> @product.DiscountPercent</div>
+					<div><strong>قیمت پس از تخفیف:</strong> @product.FeeSaleAfterDiscount.ToString("N0")</div>
+					<div><strong>فعال:</strong> @(product.IsActive ? "بله" : "خیر")</div>
+					<div class="product-actions">
+						<button class="btn btn-sm btn-warning me-2" @onclick="()=>OpenEditProduct(product.ProductId)"> <img src="images/edit-icon.png" width="20px" height="20px" />  ویرایش</button>
+						<button class="btn btn-sm btn-danger me-2" @onclick="() => OpenEditProduct(product.ProductId)"> <img src="images/edit-icon.png" width="20px" height="20px" />  موجودی و قیمت</button>
+						<button class="btn btn-sm btn-primary me-2" @onclick="() => ShowPriceLabelPrint(product.ProductId)"><img src="images/price-tag.png" width="20px" height="20px" /> چاپ قیمت </button>
+					</div>
+				</div>
+			}
+		</div>
+	}
+	else
+	{
+		// Desktop view - use table layout
+		<table class="table">
+			<thead>
+				<tr>
+					<th>کد</th>
+					<th>عنوان</th>
+					<th>بارکد</th>
+					<th>توضیحات</th>
+					<th>گروه کالا</th>
+					<th>برند کالا</th>
+					<th>مبلغ خرید</th>
+					<th>قیمت فروش</th>
+					<th>درصد تخفیف</th>
+					<th>قیمت پس از تخفیف</th>
+					<th>فعال</th>
+					<th>عملیات</th> <!-- Column for actions -->
+				</tr>
+			</thead>
+			<tbody>
+				@foreach (var product in products)
+				{
+					<tr>
+						<td>@product.Code</td>
+						<td>@product.Title</td>
+						<td>@product.Barcode</td>
+						<td>@product.Description</td>
+						<td>@product.GroupTitle</td>
+						<td>@product.ProductBrandTitle</td>
+						<td>@product.FeeBuy.ToString("N0")</td>
+						<td>@product.FeeSale.ToString("N0")</td>
+						<td>@product.DiscountPercent</td>
+						<td>@product.FeeSaleAfterDiscount.ToString("N0")</td>
+						<td>@(product.IsActive ? "بله" : "خیر")</td>
+						<td>
+							<button class="btn btn-sm btn-warning me-2" @onclick="()=>OpenEditProduct(product.ProductId)"> <img src="images/edit-icon.png" width="20px" height="20px" />  ویرایش</button>
+							<button class="btn btn-sm btn-danger me-2" @onclick="() => OpenEditProduct(product.ProductId)"> <img src="images/edit-icon.png" width="20px" height="20px" />  موجودی و قیمت</button>
+							<button type="button" class="btn btn-sm btn-primary me-2" @onclick="() => ShowPriceLabelPrint(product.ProductId)"> چاپ قیمت </button>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+else
+{
+	<p>هیچ کالایی یافت نشد.</p>
+}
+
+<Client.Pages.Product.BarcodeScanner @ref="barcodeScanner" OnBarcodeScanned="OnBarcodeScanned" />
+<PrintProductLabel @ref="printProduct" />
+
+@code {
+	private string searchBarcode = string.Empty;
+	private string searchedBarcode = string.Empty;
+	private string searchName = string.Empty;
+	private List<Product> products;
+	private bool isMobile;
+	private bool isFirstRender = true; // پرچم برای مدیریت اولین رندر
+
+	private ElementReference searchBarcodeInput;
+	private ElementReference seearchbutton;
+
+	private PrintProductLabel printProduct;
+
+	private Client.Pages.Product.BarcodeScanner barcodeScanner;
+
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+
+		if (firstRender)
+		{
+			await SetToken();
+			ApiClient.SetToken(Token);
+
+			await LoadProducts();
+			// فقط در اولین رندر این کارها را انجام بده
+			await searchBarcodeInput.FocusAsync();
+
+			// بررسی وضعیت موبایل فقط یک بار
+			isMobile = await js.InvokeAsync<bool>("isMobile");
+			isFirstRender = false;
+
+			// فقط اگر واقعاً نیاز به رندر مجدد داریم
+			if (isMobile)
+			{
+				await InvokeAsync(StateHasChanged);
+			}
+		}
+
+	}
+	private void ScanBarcode()
+	{
+		barcodeScanner?.ShowModal();
+	}
+	private void OpenEditProduct(int productId)
+	{
+		OpenLink($"Product/edit-product/{productId}");
+	}
+	private void OpenProductBalance(int productId)
+	{
+		OpenLink($"Product/priceBalance/{productId}");
+	}
+
+	private async Task OnBarcodeScanned(string barcode)
+	{
+		searchBarcode = barcode;
+		searchedBarcode = barcode;
+		await SearchProducts();
+	}
+
+	private async Task LoadProducts()
+	{
+		try
+		{
+			products = await ApiClient.GetAsync<List<Product>>("Products/GetTop50");
+			searchBarcode = string.Empty;
+			searchedBarcode = string.Empty;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error loading products: {ex.Message}");
+		}
+	}
+	private async Task ShowPriceLabelPrint(int productId)
+	{
+		if (printProduct != null)
+		{
+			await printProduct.Show(productId);
+		}
+	}
+	private async Task SearchProducts()
+	{
+		try
+		{
+			if (!string.IsNullOrEmpty(searchBarcode) || !string.IsNullOrEmpty(searchName))
+			{
+				string endpoint = "Products/SearchProducts";
+				products = await ApiClient.PostAsync<List<Product>>(endpoint,
+					new ProductSearchRequest { Barcode = searchBarcode, ProductName = searchName });
+			}
+			else
+			{
+				await LoadProducts();
+			}
+
+			await searchBarcodeInput.FocusAsync();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error searching products: {ex.Message}");
+		}
+	}
+
+
+	private async Task HandleKeydown(KeyboardEventArgs e)
+	{
+		if (e.Key == "Enter")
+		{
+			await seearchbutton.FocusAsync();
+			await SearchProducts();
+		}
+	}
+
+	private async Task OnLostFocus()
+	{
+		if (!string.IsNullOrEmpty(searchBarcode.Trim()))
+		{
+			await SearchProducts();
+
+			searchedBarcode = searchBarcode;
+
+			searchBarcode = string.Empty;
+
+			//await InvokeAsync(StateHasChanged);
+		}
+
+	}
+}

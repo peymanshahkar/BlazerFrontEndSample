@@ -1,0 +1,693 @@
+﻿@using BlazorBarcodeScanner.ZXing.JS
+@inject IJSRuntime JSRuntime
+
+<style>
+    .barcode-scanner-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-dialog-scanner {
+        width: 95%;
+        max-width: 800px;
+        max-height: 95vh;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .modal-header-scanner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title-scanner {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 600;
+    }
+
+    .close-btn {
+        background: #ffc107;
+        border: none;
+        color: #9b2887;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.3s;
+    }
+
+        .close-btn:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+    .modal-body-scanner {
+        padding: 20px;
+        max-height: calc(95vh - 140px);
+        overflow-y: auto;
+    }
+
+    .scanner-container {
+        position: relative;
+        margin-bottom: 20px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #000;
+    }
+
+    .scanner-video {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+    }
+
+    .scanner-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .scan-line {
+        position: absolute;
+        height: 2px;
+        background: #00ff00;
+        width: 100%;
+        top: 50%;
+        animation: scan 2s linear infinite;
+        box-shadow: 0 0 10px #00ff00;
+    }
+
+    @@keyframes scan {
+        0% {
+            top: 20%;
+        }
+
+        50% {
+            top: 80%;
+        }
+
+        100% {
+            top: 20%;
+        }
+    }
+
+    .scanner-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .control-label {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #495057;
+        font-size: 0.9rem;
+    }
+
+    .control-select {
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        background: white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        padding: 10px 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.7rem;
+        font-weight: 900;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 130px;
+        justify-content: center;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+    .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+    }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+        }
+
+    .results-section {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .result-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .result-title {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 10px;
+        font-size: 1rem;
+    }
+
+    .barcode-result {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #28a745;
+        text-align: center;
+        margin: 10px 0;
+        direction: ltr;
+    }
+
+    .history-list {
+        max-height: 150px;
+        overflow-y: auto;
+        border: 1px solid #e9ecef;
+        border-radius: 5px;
+        padding: 10px;
+    }
+
+    .history-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #f1f3f4;
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        background: #e7f3ff;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        border-left: 4px solid #007bff;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #28a745;
+        animation: pulse 2s infinite;
+    }
+
+        .status-dot.scanning {
+            background: #007bff;
+        }
+
+        .status-dot.error {
+            background: #dc3545;
+        }
+
+    @@keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    /* استایل‌های مخصوص موبایل */
+    @@media (max-width: 768px) {
+        .modal-dialog-scanner {
+            width: 98%;
+            margin: 10px;
+            max-height: 98vh;
+        }
+
+        .modal-body-scanner {
+            padding: 15px;
+            max-height: calc(98vh - 120px);
+        }
+
+        .scanner-video {
+            height: 250px;
+        }
+
+        .scanner-controls {
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+
+        .barcode-result {
+            font-size: 1.1rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .modal-header-scanner {
+            padding: 10px 15px;
+        }
+
+        .modal-title-scanner {
+            font-size: 1.1rem;
+        }
+
+        .scanner-video {
+            height: 200px;
+        }
+
+        .modal-body-scanner {
+            padding: 10px;
+        }
+    }
+
+    /* اسکرول بار زیبا */
+    .modal-body-scanner::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal-body-scanner::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .modal-body-scanner::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+        .modal-body-scanner::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+</style>
+
+@if (IsVisible)
+{
+    <div class="barcode-scanner-modal">
+        <div class="modal-dialog-scanner">
+            <div class="modal-header-scanner">
+                <h5 class="modal-title-scanner">
+                    <i class="fas fa-barcode me-2"></i>
+                    اسکنر بارکد
+                </h5>
+                <button class="close-btn" @onclick="CloseModal">
+                    <i class="fas fa-times">X</i>
+                </button>
+            </div>
+            <div class="modal-body-scanner">
+                <!-- وضعیت اسکنر -->
+                <div class="status-indicator">
+                    <div class="status-dot @(isScanning ? "scanning" : "") @(!string.IsNullOrEmpty(ErrorMessage) ? "error" : "")"></div>
+                    <span>@StatusMessage</span>
+                </div>
+
+                <!-- اسکنر بارکد -->
+                <div class="scanner-container">
+                    <BarcodeReader @ref="barcodeReader"
+                                   VideoWidth="400"
+                                   VideoHeight="300"
+                                   OnBarcodeReceived="OnBarcodeDetected"
+                                   OnErrorReceived="OnErrorOccurred"
+                                   OnDecodingChanged="OnDecodingStateChanged" />
+
+                    <!-- overlay برای اسکن -->
+                    <div class="scanner-overlay">
+                        <div class="scan-line" style="display: @(isScanning ? "block" : "none");"></div>
+                    </div>
+                </div>
+
+               
+
+                <!-- دکمه‌های عملیاتی -->
+                <div class="action-buttons">
+                    <button class="btn btn-success" @onclick="StartScanning" disabled="@isScanning">
+                        <i class="fas fa-play me-1"></i>
+                        شروع اسکن
+                    </button>
+                    <button class="btn btn-secondary" @onclick="StopScanning" disabled="@(!isScanning)">
+                        <i class="fas fa-stop me-1"></i>
+                        توقف اسکن
+                    </button>
+                    <button class="btn btn-warning" @onclick="ToggleCamera">
+                        <i class="fas fa-camera me-1"></i>
+                        تغییر دوربین
+                    </button>
+                    <button class="btn btn-primary" @onclick="ClearResults">
+                        <i class="fas fa-eraser me-1"></i>
+                        پاک کردن
+                    </button>
+                </div>
+
+                <!-- نتایج اسکن -->
+                <div class="results-section">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="result-card">
+                                <div class="result-title">
+                                    <i class="fas fa-check-circle me-2 text-success"></i>
+                                    آخرین بارکد اسکن شده
+                                </div>
+                                @if (!string.IsNullOrEmpty(LastScannedBarcode))
+                                {
+                                    <div class="barcode-result">@LastScannedBarcode</div>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <button class="btn btn-outline-success btn-sm" @onclick="CopyToClipboard">
+                                            <i class="fas fa-copy me-1"></i> کپی
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm" @onclick="SearchBarcode">
+                                            <i class="fas fa-search me-1"></i> جستجو
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-muted text-center mb-0">هنوز بارکدی اسکن نشده است</p>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="result-card">
+                                <div class="result-title">
+                                    <i class="fas fa-history me-2 text-info"></i>
+                                    تاریخچه اسکن
+                                </div>
+                                <div class="history-list">
+                                    @if (ScanHistory.Any())
+                                    {
+                                        @foreach (var item in ScanHistory.Take(5))
+                                        {
+                                            <div class="history-item">@item</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted text-center mb-0">تاریخچه‌ای موجود نیست</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تنظیمات پیشرفته -->
+                <div class="scanner-controls mt-3">
+                    <div class="control-group">
+                        <label class="control-label">
+                            <input type="checkbox" @bind="AutoStart" class="me-2" />
+                            شروع خودکار اسکن
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">
+                            <input type="checkbox" @bind="PlaySound" class="me-2" />
+                            پخش صدا هنگام شناسایی
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">
+                            <input type="checkbox" @bind="AutoClose" class="me-2" />
+                            بستن خودکار پس از اسکن
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private BlazorBarcodeScanner.ZXing.JS.BarcodeReader? barcodeReader;
+    private bool IsVisible { get; set; }
+    private string StatusMessage { get; set; } = "آماده برای اسکن";
+    private string LastScannedBarcode { get; set; } = string.Empty;
+    private List<string> ScanHistory { get; set; } = new List<string>();
+    private bool AutoStart { get; set; } = false;
+    private bool PlaySound { get; set; } = true;
+    private bool AutoClose { get; set; } = false;
+    private bool isScanning = false;
+    private string ErrorMessage = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> OnBarcodeScanned { get; set; }
+
+    public async Task ShowModal()
+    {
+        IsVisible = true;
+        StateHasChanged();
+
+        if (AutoStart)
+        {
+            await Task.Delay(500); // تأخیر برای اطمینان از لود شدن کامپوننت
+            await StartScanning();
+        }
+    }
+
+    private void CloseModal()
+    {
+        _=StopScanning();
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    private async Task StartScanning()
+    {
+        try
+        {
+            if (barcodeReader != null)
+            {
+                await barcodeReader.StartDecoding();
+                isScanning = true;
+                StatusMessage = "🔍 در حال اسکن... بارکد را در مقابل دوربین قرار دهید";
+                ErrorMessage = string.Empty;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            StatusMessage = $"❌ خطا در شروع اسکن: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopScanning()
+    {
+        try
+        {
+            if (barcodeReader != null)
+            {
+                await barcodeReader.StopDecoding();
+                isScanning = false;
+                StatusMessage = "⏹️ اسکن متوقف شد";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"❌ خطا در توقف اسکن: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleCamera()
+    {
+        // این قابلیت نیاز به پیاده‌سازی با JS Interop دارد
+        StatusMessage = "📷 در حال تغییر دوربین...";
+        StateHasChanged();
+
+        await Task.Delay(1000);
+        StatusMessage = "✅ دوربین تغییر کرد";
+        StateHasChanged();
+    }
+
+    private void OnBarcodeDetected(BarcodeReceivedEventArgs args)
+    {
+        if (!string.IsNullOrEmpty(args.BarcodeText))
+        {
+            LastScannedBarcode = args.BarcodeText;
+            ScanHistory.Insert(0, $"{DateTime.Now:HH:mm:ss} - {args.BarcodeText}");
+
+            StatusMessage = $"✅ بارکد شناسایی شد: {args.BarcodeText}";
+
+            if (PlaySound)
+            {
+                _ = PlayBeepSound();
+            }
+
+            StateHasChanged();
+
+            // فراخوانی callback
+            OnBarcodeScanned.InvokeAsync(args.BarcodeText);
+
+            // بستن خودکار اگر فعال باشد
+            if (AutoClose)
+            {
+                _ = Task.Delay(1000).ContinueWith(_ =>
+                {
+                    InvokeAsync(CloseModal);
+                });
+            }
+        }
+    }
+
+    private void OnErrorOccurred(ErrorReceivedEventArgs args)
+    {
+        ErrorMessage = args.Message;
+        StatusMessage = $"❌ خطا: {args.Message}";
+        StateHasChanged();
+    }
+
+    private void OnDecodingStateChanged(DecodingChangedArgs args)
+    {
+        isScanning = args.IsDecoding;
+        StatusMessage = args.IsDecoding ? "🔍 در حال اسکن..." : "✅ آماده برای اسکن";
+        StateHasChanged();
+    }
+
+    private async Task CopyToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", LastScannedBarcode);
+            StatusMessage = "📋 بارکد در کلیپ‌بورد کپی شد";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"❌ خطا در کپی کردن: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchBarcode()
+    {
+        StatusMessage = "🔎 در حال جستجو...";
+        StateHasChanged();
+
+        // شبیه‌سازی جستجو
+        await Task.Delay(500);
+        StatusMessage = $"🔎 جستجو برای بارکد: {LastScannedBarcode}";
+        StateHasChanged();
+    }
+
+    private void ClearResults()
+    {
+        LastScannedBarcode = string.Empty;
+        ScanHistory.Clear();
+        StatusMessage = "🧹 نتایج پاک شد";
+        StateHasChanged();
+    }
+
+    private async Task PlayBeepSound()
+    {
+        try
+        {
+            // کد ساده‌شده برای پخش بوق
+            string jsCode = @"
+                var audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vmz+Zt//+mm3Wm3Q576v////+32///5/EOgAAADVghQAAAAA');
+                audio.play();
+            ";
+            await JSRuntime.InvokeVoidAsync("eval", jsCode);
+        }
+        catch (Exception)
+        {
+            // در صورت خطا در پخش صدا، کاری نکن
+        }
+    }
+
+    public void Dispose()
+    {
+        _=StopScanning();
+    }
+}

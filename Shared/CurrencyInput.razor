@@ -1,0 +1,69 @@
+﻿@using System.Globalization
+
+<div>
+    <input type="text" @bind="@displayValue" @bind:event="oninput" @onblur="OnBlur" @onfocusout="OnFocusOut" class="form-control" />
+</div>
+
+@code {
+    private object rawValue="0";
+    private string displayValue;
+
+    [Parameter]
+    public object Value
+    {
+        get => rawValue;
+        set
+        {
+            if (rawValue.ToString() != value.ToString())
+            {
+                rawValue = value.ToString();
+                displayValue = FormatCurrency(rawValue.ToString());
+                // نیاز نیست ValueChanged را در setter فراخوانی کنیم،
+                // این کار می‌تواند تکراری باشد و در بعضی موارد مشکل‌ساز شود.
+            }
+        }
+    }
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnLostFocus{ get; set; }
+
+    protected override void OnParametersSet()
+    {
+        displayValue = FormatCurrency(rawValue.ToString());
+    }
+
+    private string FormatCurrency(string value)
+    {
+        if (double.TryParse(value, out var amount))
+        {
+            return amount.ToString("N0", CultureInfo.InvariantCulture);
+        }
+        return string.Empty;
+    }
+
+    private async Task OnBlur()
+    {
+        if (string.IsNullOrEmpty(displayValue))
+        {
+            rawValue = string.Empty;
+        }
+        else
+        {
+            var digits = new string(displayValue.Where(char.IsDigit).ToArray());
+            rawValue = digits;
+        }
+        displayValue = FormatCurrency(rawValue.ToString());
+
+        // فراخوانی ValueChanged در اینجا برای به‌روز رسانی
+        await ValueChanged.InvokeAsync(rawValue.ToString());
+    }
+
+
+    private async Task OnFocusOut()
+    {
+        await OnLostFocus.InvokeAsync();
+    }
+}

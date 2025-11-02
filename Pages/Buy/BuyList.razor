@@ -1,0 +1,200 @@
+﻿@page "/buy-List"
+@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+
+
+@inherits BaseComponent;
+
+<h3>لیست فاکتورهای خرید</h3>
+
+<div class="search-bar">
+	<div class="form-group">
+		<input type="text" @bind="searchTerm" class="form-control" placeholder="جستجو..." style="padding-right:10px;padding-left:10px; margin-left:10px; margin-right:10px;" />
+	</div>
+	<button @onclick="Search" class="btn btn-primary">جستجو</button>
+
+</div>
+
+
+<button class="btn btn-success" @onclick="AddNewBuyMaster">افزودن فاکتور جدید</button>
+@if (isLoading)
+{
+	<p>در حال بارگذاری...</p>
+}
+else
+{
+	<div class="table-responsive d-none d-md-block">
+		<table class="table table-striped table-responsive">
+			<thead>
+				<tr>
+					<th>کد فاکتور</th>
+					<th>تاریخ فاکتور</th>
+					<th>تامین کننده</th>
+					<th>نوع خرید</th>
+					<th>شماره فاکتور تامین کننده</th>
+					<th>قیمت نهایی</th>
+					<th>عملیات</th>
+				</tr>
+			</thead>
+			<tbody>
+				@if (FilteredList != null)
+				{
+					@foreach (var buyMaster in FilteredList)
+					{
+						<tr>
+							<td>@buyMaster.FactorCode</td>
+							<td>@buyMaster.FactorDatePersian.ToString()</td>
+							<td>@buyMaster.ProducerName</td>
+							<td>@buyMaster.BuyTypeTitle</td>
+							<td>@buyMaster.ProducerFactorCode</td>
+							<td>@buyMaster.FinalPrice</td>
+							<td>
+								<button class="btn btn-primary" @onclick="() => EditBuyMaster(buyMaster.BuyMasterId)">ویرایش</button>
+							</td>
+						</tr>
+					}
+				}
+			</tbody>
+		</table>
+	</div>
+
+
+	if (FilteredList != null)
+	{
+		<div class="d-block d-md-none">
+
+			@foreach (var buyMaster in FilteredList)
+			{
+				<div class="card mb-3">
+					<div class="card-body">
+						<div class="row">
+							<div class="col-6">
+								<strong>کد فاکتور:</strong>
+							</div>
+							<div class="col-6">
+								@buyMaster.FactorCode
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-6">
+								<strong>تاریخ:</strong>
+							</div>
+							<div class="col-6">
+								@buyMaster.FactorDatePersian
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-6">
+								<strong>تامین کننده:</strong>
+							</div>
+							<div class="col-6">
+								@buyMaster.ProducerName
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-6">
+								<strong>فاکتور تامین کننده:</strong>
+							</div>
+							<div class="col-6">
+								@buyMaster.ProducerFactorCode
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-6">
+								<strong>قیمت نهایی:</strong>
+							</div>
+							<div class="col-6">
+								@buyMaster.FinalPrice
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-12 text-center mt-2">
+								<button class="btn btn-primary" @onclick="() => EditBuyMaster(buyMaster.BuyMasterId)">ویرایش</button>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			}
+		</div>
+	}
+}
+
+
+@code {
+	private List<BuyMasterDto> buyMasters;
+	private List<BuyMasterDto> FilteredList;
+	private bool isLoading = true;
+	private string searchTerm = string.Empty;
+
+
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		// isMobile = await js.InvokeAsync<bool>("isMobile");
+		if (firstRender)
+		{
+			await SetToken();
+			ApiClient.SetToken(Token);
+
+			await LoadBuyMasters();
+
+			// await searchBarcodeInput.FocusAsync();
+		}
+		await InvokeAsync(StateHasChanged); // برای رندر مجدد کامپوننت پس از تغییر isMobile
+
+
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadBuyMasters();
+	}
+
+	private async Task LoadBuyMasters()
+	{
+		isLoading = true;
+		buyMasters = await ApiClient.GetAsync<List<BuyMasterDto>>("Buy/GetBuyMastersAsync"); ///BuyMasterRepository.GetBuyMastersAsync(searchTerm);
+		await Search();
+		isLoading = false;
+	}
+	private async Task OnFocusOut()
+	{
+		await Search();
+	}
+
+	private async Task Search()
+	{
+		//searchTerm = e.Value.ToString();
+
+		if (!string.IsNullOrEmpty(searchTerm))
+		{
+			FilteredList = buyMasters.Where(x => x.FactorCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+												|| x.ProducerName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+												|| x.FactorDatePersian.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+												|| x.ProducerFactorCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+		}
+		else
+		{
+			FilteredList = buyMasters;
+		}
+
+		await InvokeAsync(StateHasChanged);
+
+	}
+
+	private void EditBuyMaster(int buyMasterId)
+	{
+		// کد برای ویرایش فاکتور
+		OpenLink($"/Addbuy/{buyMasterId}");
+	}
+
+	private void AddNewBuyMaster()
+	{
+		OpenLink("/Addbuy");
+	}
+}

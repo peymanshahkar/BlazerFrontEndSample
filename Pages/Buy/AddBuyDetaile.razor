@@ -1,0 +1,233 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using DarianTablet.Shared.DataModel;
+@using DarianTablet.Shared.Dto;
+@using Client.Shared;
+@using System.Threading.Tasks;
+@using Blazored.LocalStorage;
+@using Microsoft.AspNetCore.Mvc;
+@using Product;
+
+
+@inherits BaseComponent;
+
+<style>
+	<style >
+	.modal-dialog {
+		max-width: 100%; /* عرض مودال را به ۹۸ درصد صفحه تنظیم می‌کند */
+		width: 100%; /* عرض مودال را به ۹۸ درصد صفحه تنظیم می‌کند */
+		margin: 1% auto; /* مرکز‌چینی مودال */
+	}
+
+	.modal-content {
+		width: 100%; /* عرض محتوای مودال را به ۱۰۰ درصد تنظیم می‌کند */
+	}
+</style>
+</style>
+<div class="modal" tabindex="-1" role="dialog" style="display:@(isVisible ? "block" : "none")">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">@modalTitle</h5>
+				<button type="button" class="close" @onclick="CloseModal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<EditForm Model="buyDetail" OnValidSubmit="HandleValidSubmit">
+					<DataAnnotationsValidator />
+					<ValidationSummary />
+					<div class="form-container">
+						<div class="form-group">
+							<label for="productId">کالا</label>
+							<InputText id="productId" class="form-control" @bind-Value="buyDetail.ProductName" @onfocusin="ShowProductModal" @onclick="ShowProductModal"/>
+						</div>
+						<div class="form-group">
+							<label for="quantity">تعداد</label>
+							<InputNumber id="quantity" class="form-control" @bind-Value="buyDetail.Quantity" @onfocusout="@OnLostFocus" />
+						</div>
+
+						<div class="form-group">
+							<label for="quantityComplimentary">تعداد اشانتیون</label>
+							<InputNumber id="quantityComplimentary" class="form-control" @bind-Value="buyDetail.QuantityComplimentary" />
+						</div>
+						<div class="form-group">
+							<label for="feeBuy">فی خرید</label>
+							<CurrencyInput  Value="@FeeBuy" ValueChanged="@FeeBuyChanged" OnLostFocus="@OnLostFocus" />
+						</div>
+						<div class="form-group">
+							<label for="feeSale">فی فروش</label>
+							<CurrencyInput  Value="@FeeSale" ValueChanged="@FeeSaleChanged" />
+						</div>
+						<div class="form-group">
+							<label for="totalPrice">مبلغ کل</label>
+							<span>@buyDetail.TotalPrice</span>
+						</div>
+						<div class="form-group">
+							<label for="discountPercent">درصد تخفیف</label>
+							<InputNumber id="discountPercent" class="form-control" @bind-Value="buyDetail.DiscountPercent" @onfocusout="OnLostFocus" />
+						</div>
+						<div class="form-group">
+							<label for="discountPrice">مبلغ تخفیف</label>
+							<CurrencyInput Value="@buyDetail.DiscountPrice" OnLostFocus="@OnLostFocus" />
+						</div>
+						<div class="form-group">
+							<label for="totalPriceAfterDiscount">مبلغ پس از تخفیف</label>
+							<span class="form-control">@buyDetail.TotalPriceAfterDiscount</span>
+						</div>
+						<div class="form-group">
+							<label for="taxPercent">درصد مالیات</label>
+							<InputNumber id="taxPercent" class="form-control" @bind-Value="buyDetail.TaxPercent" @onfocusout="OnLostFocus" />
+						</div>
+						<div class="form-group">
+							<label for="taxPrice">مبلغ مالیات</label>
+							<span class="form-control"> @buyDetail.TaxPrice.ToString("N0") </span>
+						</div>
+						<div class="form-group">
+							<label for="finalPrice">قابل پرداخت</label>
+							<span class="form-control"> @buyDetail.FinalPrice.ToString("N0") </span>
+						</div>
+
+					</div>
+					<button type="submit" class="btn btn-success">ثبت</button>
+				</EditForm>
+			</div>
+		</div>
+	</div>
+</div>
+
+<Client.Pages.Product.SearchProductModal @ref="searchProductModal" OnProductSelected="HandleProductOnSelected" />
+<_ErrorModal @ref="errorModal" />
+@code {
+	private bool isVisible = false;
+	private string modalTitle;
+	private BuyDetail buyDetail = new BuyDetail();
+
+	private string FeeBuy { get; set; } = "0";
+	private string FeeSale { get; set; } = "0";
+
+	private SearchProductModal searchProductModal;
+
+	private _ErrorModal errorModal;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		// isMobile = await js.InvokeAsync<bool>("isMobile");
+		if (firstRender)
+		{
+			await SetToken();
+			ApiClient.SetToken(Token);
+			await InvokeAsync(StateHasChanged); // برای رندر مجدد کامپوننت پس از تغییر isMobile
+
+		}
+
+
+	}
+
+
+	public void ShowAddModal(long buymasterId)
+	{
+		modalTitle = "افزودن ردیف فاکتور";
+		buyDetail = new BuyDetail();
+		buyDetail.BuyMasterId = buymasterId;
+		isVisible = true;
+		StateHasChanged();
+	}
+
+	public async Task ShowEditModal(long buyDetailId)
+	{
+		modalTitle = "ویرایش ردیف فاکتور";
+		buyDetail =await ApiClient.GetAsync<BuyDetail>($"Buy/GetBuyDetail/{buyDetailId}");  //BuyDetailRepository.GetByIdAsync(buyDetailId).Result;
+		FeeBuy = buyDetail.FeeBuy == null ? "0" :buyDetail.FeeBuy.ToString();
+		FeeSale = buyDetail.FeeSale.ToString();
+		isVisible = true;
+		StateHasChanged();
+	}
+
+	private void CloseModal()
+	{
+		isVisible = false;
+		StateHasChanged();
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			if (buyDetail.BuyDetailId == 0)
+			{
+				var result= await ApiClient.PostAsync<BuyDetail>("Buy/CreateBuyDetail", buyDetail);
+				if(result.BuyDetailId==0)
+				{
+					errorModal.Show("خطا در افزودن ردیف فاکتور", "خطا");
+					return;
+				}
+				buyDetail = result;
+			}
+			else
+			{
+				var result = await ApiClient.PostAsync<Response>("Buy/UpdateBuyDetail", buyDetail);
+				if (result.status != "200")
+				{
+					errorModal.Show(result.message, "خطا");
+					return;
+				}
+			}
+
+			
+
+			CloseModal();
+		}catch(Exception ex)
+		{
+			errorModal.Show("خطا در انجام عملیات"+" "+ex.Message, "خطا");
+		}
+		isVisible = false;
+		StateHasChanged();
+		await OnBuyDetailAddedOrEdited.InvokeAsync(buyDetail);
+	}
+
+	private void OnLostFocus()
+	{
+		buyDetail.Calc();
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void FeeBuyChanged(string value)
+	{
+		if (value != null)
+		{
+
+			FeeBuy = value;
+			buyDetail.FeeBuy = long.Parse(value.ToString());
+		//	InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private void FeeSaleChanged(string value)
+	{
+		if (!string.IsNullOrEmpty(value))
+		{
+			FeeSale = value;
+			buyDetail.FeeSale = long.Parse(value.ToString());
+			//InvokeAsync(StateHasChanged);
+
+		}
+	}
+
+	private void ShowProductModal()
+	{
+		searchProductModal.ShowModal();
+	}
+
+
+	private void HandleProductOnSelected(Product selectedProduct)
+	{
+		buyDetail.ProductId=selectedProduct.ProductId;
+		buyDetail.ProductName = selectedProduct.Title + $"({selectedProduct.Barcode})";
+		InvokeAsync(StateHasChanged);
+
+	}
+
+
+	[Parameter]
+	public EventCallback<BuyDetail> OnBuyDetailAddedOrEdited { get; set; }
+}
